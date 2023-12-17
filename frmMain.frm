@@ -292,7 +292,6 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-Public Opponent As Byte
 Dim pressed As Boolean
 Dim x0, y0 As Single
 Const P1FirstPieceIndex As Byte = 0, P2FirstPieceIndex As Byte = 4, EmptyValue As Byte = 0, P1Value As Byte = 1, P2Value As Byte = 2, OutOfTable = 100 _
@@ -301,7 +300,7 @@ Const SendToBack As Byte = 1, BringToFront As Byte = 0
 Dim table(MaxDimensionIndex, MaxDimensionIndex) As Byte
 Dim PrimaryPositions(LastPieceIndex, 2) As Integer, previousPositions(LastPieceIndex, 2) As Integer
 Dim DeltaCenter As Integer ' For Finding the imageview center
-Dim row As Byte, colomn As Byte, pRow As Byte, pColomn As Byte, playerTurn As Byte
+Dim NewMove As New Movement, PreMove As New Movement, playerTurn As Byte
 Dim scores(1) As Integer
 
 Private Sub btnReset_Click()
@@ -333,7 +332,8 @@ End Sub
 
 Private Sub Form_Load()
     Player2.Class_Initialize
-    
+    NewMove.Class_Initialize
+    PreMove.Class_Initialize
     Dim i As Byte
     For i = 0 To LastPieceIndex
         PrimaryPositions(i, LeftIndex) = imgPlayer(i).Left
@@ -355,12 +355,11 @@ Private Sub imgPlayer_MouseDown(index As Integer, Button As Integer, Shift As In
         previousPositions(index, LeftIndex) = imgPlayer(index).Left
         previousPositions(index, TopIndex) = imgPlayer(index).Top
         If previousPositions(index, LeftIndex) = PrimaryPositions(index, LeftIndex) And previousPositions(index, TopIndex) = PrimaryPositions(index, TopIndex) Then
-            pRow = OutOfTable
-            pColomn = OutOfTable
+            Call PreMove.PutOutOfTable
         Else
             SetTableIndexes index
-            pRow = row
-            pColomn = colomn
+            PreMove.Row = NewMove.Row
+            PreMove.Column = NewMove.Column
         End If
     Else
         Beep
@@ -389,23 +388,23 @@ Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Inte
             
         Else
         
-            SetTableIndexes index 'find the row and colomn variables values
+            SetTableIndexes index 'find the NewMove.Row and NewMove.Column variables values
                 'edit table array value  with player data
-            If table(row, colomn) <> EmptyValue Then
+            If table(NewMove.Row, NewMove.Column) <> EmptyValue Then
                 ShowError "Destination room is not empty!"
                 RollbackMove index
             Else
                 wmpPlayer.URL = App.Path + "\moved.wav"  'play piece move sound
                 
-                If pRow <> OutOfTable Then
-                    table(pRow, pColomn) = EmptyValue
+                If PreMove.IsInsideTable Then
+                    table(PreMove.Row, PreMove.Column) = EmptyValue
                 End If
                 
-                table(row, colomn) = IIf(index < P2FirstPieceIndex, P1Value, P2Value)
+                table(NewMove.Row, NewMove.Column) = IIf(index < P2FirstPieceIndex, P1Value, P2Value)
                 
                 'Set the imgPlayer location at the center of the room
-                imgPlayer(index).Top = (linHorizontal(row).Y1 + linHorizontal(row + 1).Y1) / 2 - DeltaCenter
-                imgPlayer(index).Left = (linVertical(colomn).X1 + linVertical(colomn + 1).X1) / 2 - DeltaCenter
+                imgPlayer(index).Top = (linHorizontal(NewMove.Row).Y1 + linHorizontal(NewMove.Row + 1).Y1) / 2 - DeltaCenter
+                imgPlayer(index).Left = (linVertical(NewMove.Column).X1 + linVertical(NewMove.Column + 1).X1) / 2 - DeltaCenter
                 Dim winner As Byte: winner = 0
                 winner = CheckForWinner()
                 If winner <> EmptyValue Then
@@ -423,18 +422,18 @@ End Sub
 
 Private Sub SetTableIndexes(index As Integer)
     Dim r As Byte
-    ' Find current location row
+    ' Find current location NewMove.Row
     For r = 0 To MaxDimensionIndex
         If imgPlayer(index).Top + DeltaCenter <= linHorizontal(r + 1).Y1 Then
-            row = r
+            NewMove.Row = r
             Exit For
         End If
     Next r
     
-    ' Find current location colomn
+    ' Find current location NewMove.Column
     For r = 0 To MaxDimensionIndex
         If imgPlayer(index).Left + DeltaCenter <= linVertical(r + 1).X1 Then
-            colomn = r
+            NewMove.Column = r
             Exit For
         End If
     Next r
@@ -452,10 +451,8 @@ Private Sub ResetGame(userRequestedTheReset As Boolean)
     pressed = False
     x0 = 0
     y0 = 0
-    row = OutOfTable
-    colomn = OutOfTable
-    pRow = OutOfTable
-    pColomn = OutOfTable
+    Call NewMove.PutOutOfTable
+    Call PreMove.PutOutOfTable
     scores(0) = 0
     scores(1) = 0
     lblResult.Caption = "0 - 0"
@@ -475,7 +472,8 @@ Private Sub ResetGame(userRequestedTheReset As Boolean)
         For i = 0 To MaxDimensionIndex
             Dim j As Byte
             For j = 0 To MaxDimensionIndex
-                table(i, j) = 0
+                table(i, j) = EmptyValue
+                
             Next j
         Next i
     End If
@@ -505,17 +503,14 @@ Private Sub ManageTurns()
     lblState.ForeColor = vbBlue
     lblState.Caption = "Player " + Str(playerTurn + 1) + "'s Turn"
     
-    If Player2.Name = BodY Then
+    If playerTurn = 1 And Player2.Name = BodY Then
         Call DoBodYMove
     End If
 End Sub
 
 Private Function IsThisPlayerTurn(index As Integer) As Boolean
-    If (playerTurn = 0 And index < P2FirstPieceIndex) Or (playerTurn = 1 And index >= P2FirstPieceIndex) Then
-        IsThisPlayerTurn = True
-    Else
-        IsThisPlayerTurn = False
-    End If
+    IsThisPlayerTurn = (playerTurn = 0 And index < P2FirstPieceIndex) Or _
+        (playerTurn = 1 And Player2.Name = Human And index >= P2FirstPieceIndex)
 End Function
 
 Private Sub ShowError(text As String)
@@ -606,5 +601,12 @@ Private Sub ScoreNotification(winner As Byte)
 End Sub
 
 Private Sub DoBodYMove()
-    
+    Dim BodyMove As New Movement
+    BodyMove.Class_Initialize
+    BodyMove.Row = 1
+    BodyMove.Column = 1
+    imgPlayer(5).Top = (linHorizontal(BodyMove.Row).Y1 + linHorizontal(BodyMove.Row + 1).Y1) / 2 - DeltaCenter
+    imgPlayer(5).Left = (linVertical(BodyMove.Column).X1 + linVertical(BodyMove.Column + 1).X1) / 2 - DeltaCenter
+    Call ManageTurns
 End Sub
+
