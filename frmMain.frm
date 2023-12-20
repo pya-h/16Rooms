@@ -292,13 +292,14 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+Option Explicit
 Dim pressed As Boolean
 Dim x0, y0 As Single
-Const P1FirstPieceIndex As Byte = 0, P2FirstPieceIndex As Byte = 4, EmptyValue As Byte = 0, P1Value As Byte = 1, P2Value As Byte = 2, OutOfTable = 100 _
-    , LeftIndex As Byte = 0, TopIndex As Byte = 1, MaxDimensionIndex As Byte = 3, LastPieceIndex As Byte = 7 'from 0
+Const p1FirstPieceIndex As Byte = 0, p2FirstPieceIndex As Byte = TABLE_DIMENSION, p1Value As Byte = 1, p2Value As Byte = 2 _
+    , LeftIndex As Byte = 0, TopIndex As Byte = 1, MaxDimensionIndex As Byte = TABLE_DIMENSION - 1, lastPieceIndex As Byte = TABLE_DIMENSION * 2 - 1 'from 0
 Const SendToBack As Byte = 1, BringToFront As Byte = 0
 Dim table(MaxDimensionIndex, MaxDimensionIndex) As Byte
-Dim PrimaryPositions(LastPieceIndex, 2) As Integer, previousPositions(LastPieceIndex, 2) As Integer
+Dim PrimaryPositions(lastPieceIndex, 2) As Integer, previousPositions(lastPieceIndex, 2) As Integer
 Dim DeltaCenter As Integer ' For Finding the imageview center
 Dim NewMove As New Movement, PreMove As New Movement, playerTurn As Byte
 Dim scores(1) As Integer
@@ -331,11 +332,11 @@ End Sub
 '       summorize things u learned in notebooks     '
 
 Private Sub Form_Load()
-    Player2.Class_Initialize
-    NewMove.Class_Initialize
-    PreMove.Class_Initialize
+    Set Player2 = New Opponent
+    Set NewMove = New Movement
+    Set PreMove = New Movement
     Dim i As Byte
-    For i = 0 To LastPieceIndex
+    For i = 0 To lastPieceIndex
         PrimaryPositions(i, LeftIndex) = imgPlayer(i).Left
         PrimaryPositions(i, TopIndex) = imgPlayer(i).Top
     Next i
@@ -373,7 +374,20 @@ Private Sub imgPlayer_MouseMove(index As Integer, Button As Integer, Shift As In
         imgPlayer(index).Top = imgPlayer(index).Top + Y - y0
     End If
 End Sub
-
+Private Sub SubmitMove(ByRef newPlace As Movement, ByVal pieceIndex As Integer)
+    wmpPlayer.URL = App.Path + "\moved.wav"  'play piece move sound
+    table(newPlace.Row, newPlace.Column) = IIf(pieceIndex < p2FirstPieceIndex, p1Value, p2Value)
+    'Set the imgPlayer location at the center of the room
+    imgPlayer(pieceIndex).Top = (linHorizontal(newPlace.Row).Y1 + linHorizontal(newPlace.Row + 1).Y1) / 2 - DeltaCenter
+    imgPlayer(pieceIndex).Left = (linVertical(newPlace.Column).X1 + linVertical(newPlace.Column + 1).X1) / 2 - DeltaCenter
+    Dim winner As Byte: winner = 0
+    winner = CheckForWinner()
+    If winner <> EMPTY_CELL Then
+        Call ScoreNotification(winner)
+    Else
+        Call ManageTurns
+    End If
+End Sub
 Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Integer, x As Single, Y As Single)
     If IsThisPlayerTurn(index) Then
         pressed = False
@@ -390,29 +404,32 @@ Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Inte
         
             SetTableIndexes index 'find the NewMove.Row and NewMove.Column variables values
                 'edit table array value  with player data
-            If table(NewMove.Row, NewMove.Column) <> EmptyValue Then
+            If table(NewMove.Row, NewMove.Column) <> EMPTY_CELL Then
                 ShowError "Destination room is not empty!"
                 RollbackMove index
             Else
-                wmpPlayer.URL = App.Path + "\moved.wav"  'play piece move sound
+                'wmpPlayer.URL = App.Path + "\moved.wav"  'play piece move sound
                 
-                If PreMove.IsInsideTable Then
-                    table(PreMove.Row, PreMove.Column) = EmptyValue
-                End If
+                'If PreMove.IsInsideTable Then
+                '    table(PreMove.Row, PreMove.Column) = EMPTY_CELL
+                'End If
                 
-                table(NewMove.Row, NewMove.Column) = IIf(index < P2FirstPieceIndex, P1Value, P2Value)
+                'table(NewMove.Row, NewMove.Column) = IIf(index < p2FirstPieceIndex, p1Value, p2Value)
                 
                 'Set the imgPlayer location at the center of the room
-                imgPlayer(index).Top = (linHorizontal(NewMove.Row).Y1 + linHorizontal(NewMove.Row + 1).Y1) / 2 - DeltaCenter
-                imgPlayer(index).Left = (linVertical(NewMove.Column).X1 + linVertical(NewMove.Column + 1).X1) / 2 - DeltaCenter
-                Dim winner As Byte: winner = 0
-                winner = CheckForWinner()
-                If winner <> EmptyValue Then
-                    ScoreNotification (winner)
-                Else
-                    ManageTurns
+                'imgPlayer(index).Top = (linHorizontal(NewMove.Row).Y1 + linHorizontal(NewMove.Row + 1).Y1) / 2 - DeltaCenter
+                'imgPlayer(index).Left = (linVertical(NewMove.Column).X1 + linVertical(NewMove.Column + 1).X1) / 2 - DeltaCenter
+                'Dim winner As Byte: winner = 0
+                'winner = CheckForWinner()
+                'If winner <> EMPTY_CELL Then
+                '    ScoreNotification (winner)
+                'Else
+                '    ManageTurns
+                'End If
+                If PreMove.IsInsideTable Then
+                    table(PreMove.Row, PreMove.Column) = EMPTY_CELL
                 End If
-                
+                Call SubmitMove(NewMove, index)
             End If
             
         End If
@@ -457,7 +474,7 @@ Private Sub ResetGame(userRequestedTheReset As Boolean)
     scores(1) = 0
     lblResult.Caption = "0 - 0"
     Dim i As Byte
-    For i = 0 To LastPieceIndex
+    For i = 0 To lastPieceIndex
         previousPositions(i, LeftIndex) = PrimaryPositions(i, LeftIndex)
         previousPositions(i, TopIndex) = PrimaryPositions(i, TopIndex)
         
@@ -472,12 +489,12 @@ Private Sub ResetGame(userRequestedTheReset As Boolean)
         For i = 0 To MaxDimensionIndex
             Dim j As Byte
             For j = 0 To MaxDimensionIndex
-                table(i, j) = EmptyValue
+                table(i, j) = EMPTY_CELL
                 
             Next j
         Next i
     End If
-    
+    Call Player2.ResetPiecesToUnused(p2FirstPieceIndex)
 End Sub
 
 Private Sub mnuNew_Click()
@@ -509,8 +526,8 @@ Private Sub ManageTurns()
 End Sub
 
 Private Function IsThisPlayerTurn(index As Integer) As Boolean
-    IsThisPlayerTurn = (playerTurn = 0 And index < P2FirstPieceIndex) Or _
-        (playerTurn = 1 And Player2.Name = Human And index >= P2FirstPieceIndex)
+    IsThisPlayerTurn = (playerTurn = 0 And index < p2FirstPieceIndex) Or _
+        (playerTurn = 1 And Player2.Name = HUMAN And index >= p2FirstPieceIndex)
 End Function
 
 Private Sub ShowError(text As String)
@@ -522,7 +539,7 @@ End Sub
 Private Function CheckForWinner() As Byte
     Dim i, j, firstRoom As Byte
     Dim allTheSame As Boolean
-    firstRoom = EmptyValue
+    firstRoom = EMPTY_CELL
     
     ' horizontal check
     For i = 0 To MaxDimensionIndex
@@ -536,7 +553,7 @@ Private Function CheckForWinner() As Byte
             End If
         Next j
         
-        If firstRoom <> EmptyValue And allTheSame = True Then
+        If firstRoom <> EMPTY_CELL And allTheSame = True Then
            CheckForWinner = firstRoom
            Exit Function
         End If
@@ -554,7 +571,7 @@ Private Function CheckForWinner() As Byte
             End If
         Next j
         
-        If firstRoom <> EmptyValue And allTheSame = True Then
+        If firstRoom <> EMPTY_CELL And allTheSame = True Then
            CheckForWinner = firstRoom
            Exit Function
         End If
@@ -570,26 +587,26 @@ Private Function CheckForWinner() As Byte
         End If
     Next i
     
-    If firstRoom <> EmptyValue And allTheSame = True Then
+    If firstRoom <> EMPTY_CELL And allTheSame = True Then
         CheckForWinner = firstRoom
         Exit Function
     End If
     
-    firstRoom = table(0, 3)
+    firstRoom = table(0, MaxDimensionIndex)
     allTheSame = True
     For i = 1 To MaxDimensionIndex
-        If table(i, 3 - i) <> firstRoom Then
+        If table(i, MaxDimensionIndex - i) <> firstRoom Then
             allTheSame = False
             Exit For
         End If
     Next i
     
-    If firstRoom <> EmptyValue And allTheSame = True Then
+    If firstRoom <> EMPTY_CELL And allTheSame = True Then
         CheckForWinner = firstRoom
         Exit Function
     End If
     
-    CheckForWinner = EmptyValue
+    CheckForWinner = EMPTY_CELL
 End Function
 
 Private Sub ScoreNotification(winner As Byte)
@@ -597,16 +614,23 @@ Private Sub ScoreNotification(winner As Byte)
     lblState.ForeColor = vbGreen
     lblState.Caption = "Player " & winner & " Scored!"
     scores(winner - 1) = scores(winner - 1) + 1
-    lblResult.Caption = scores(P1Value - 1) & " - " & scores(P2Value - 1)
+    lblResult.Caption = scores(p1Value - 1) & " - " & scores(p2Value - 1)
 End Sub
 
 Private Sub DoBodYMove()
-    Dim BodyMove As New Movement
-    BodyMove.Class_Initialize
-    BodyMove.Row = 1
-    BodyMove.Column = 1
-    imgPlayer(5).Top = (linHorizontal(BodyMove.Row).Y1 + linHorizontal(BodyMove.Row + 1).Y1) / 2 - DeltaCenter
-    imgPlayer(5).Left = (linVertical(BodyMove.Column).X1 + linVertical(BodyMove.Column + 1).X1) / 2 - DeltaCenter
-    Call ManageTurns
+    Dim bodyMove As New Movement
+    Set bodyMove = New Movement
+    Do
+        Call bodyMove.RandomizeMove
+    Loop While table(bodyMove.Row, bodyMove.Column) <> EMPTY_CELL
+    Dim piece As Byte
+    piece = Player2.UnusedPieces
+    If piece = NO_UNUSED_PIECES Then
+        piece = p2FirstPieceIndex
+    End If
+    ' READ PREVIOUS POSITION OF PIECE AND SET IT TO EMPTY
+    ' OR DEFINE NewMove and PreMove fields for Player2, just like Player1
+    ' or maybe define both of them as Opponent Object (BETTER)
+    Call SubmitMove(bodyMove, piece)
 End Sub
 

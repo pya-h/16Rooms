@@ -21,7 +21,7 @@ Public Property Get Row() As Variant
 End Property
 
 Public Property Let Row(ByVal val As Variant)
-    If val >= 0 And val <= 3 Then
+    If val >= 0 And val < TABLE_DIMENSION Then
         mRow = val
     End If
     
@@ -43,11 +43,19 @@ Public Property Get Column() As Variant
 End Property
 
 Public Property Let Column(ByVal val As Variant)
-    If val >= 0 And val <= 3 Then
+    If val >= 0 And val < TABLE_DIMENSION Then
         mColumn = val
     End If
     
 End Property
+
+Public Sub RandomizeMove()
+    Randomize Timer
+    
+    ' Generate a random number between 1 and TABLE_DIMENSION - 1
+    Row = Int((TABLE_DIMENSION - 1) * Rnd)
+    Column = Int((TABLE_DIMENSION - 1) * Rnd)
+End Sub
 
 Public Function ToString() As String
     ToString = "(" & Row & ", " & Column & ")"

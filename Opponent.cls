@@ -15,13 +15,15 @@ Option Explicit
 
 Private mLevel As Byte
 Private mName As Byte
+Private mUnusedPieces() As Byte
+
 
 Public Property Get Name() As Variant
     Name = mName
 End Property
 
 Public Property Let Name(ByVal val As Variant)
-    If val = BodY Or val = Human Then
+    If val = BodY Or val = HUMAN Then
         mName = val
     Else
         mName = WRONG
@@ -29,16 +31,23 @@ Public Property Let Name(ByVal val As Variant)
 End Property
 
 Public Sub Class_Initialize()
-    Name = Game.BodY
-    Level = Game.Hard
+    Name = Game.HUMAN
+    Level = Game.HARD
+    ReDim mUnusedPieces(0 To (TABLE_DIMENSION - 1))
 End Sub
 
+Public Sub ResetPiecesToUnused(first As Byte)
+    Dim i As Byte
+    For i = 0 To UBound(mUnusedPieces)
+        mUnusedPieces(i) = first + i
+    Next
+End Sub
 Public Property Get Level() As Variant
     Level = mLevel
 End Property
 
 Public Property Let Level(ByVal val As Variant)
-    If val = Game.Easy Or val = Game.Hard Then
+    If val = Game.EASY Or val = Game.HARD Then
         mLevel = val
     Else
         mLevel = WRONG
@@ -49,3 +58,13 @@ Public Function ToString() As String
     ToString = "Opponent: " & IIf(Name = Game.BodY, "BodY", "Human")
 End Function
 
+Public Property Get UnusedPieces()
+    Dim length As Integer
+    length = UBound(mUnusedPieces)
+    If length > 0 Then
+        UnusedPieces = mUnusedPieces(length)
+        ReDim Preserve mUnusedPieces(0 To length - 1)
+    Else
+        UnusedPieces = NO_UNUSED_PIECES
+    End If
+End Property
