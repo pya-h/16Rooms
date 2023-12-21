@@ -358,7 +358,7 @@ Private Sub imgPlayer_MouseDown(index As Integer, Button As Integer, Shift As In
         If previousPositions(index, LeftIndex) = PrimaryPositions(index, LeftIndex) And previousPositions(index, TopIndex) = PrimaryPositions(index, TopIndex) Then
             Call PreMove.PutOutOfTable
         Else
-            SetTableIndexes index
+            GetPositionOnTable CByte(index)
             PreMove.Row = NewMove.Row
             PreMove.Column = NewMove.Column
         End If
@@ -374,7 +374,10 @@ Private Sub imgPlayer_MouseMove(index As Integer, Button As Integer, Shift As In
         imgPlayer(index).Top = imgPlayer(index).Top + Y - y0
     End If
 End Sub
-Private Sub SubmitMove(ByRef newPlace As Movement, ByVal pieceIndex As Integer)
+Private Sub SubmitMove(ByRef newPlace As Movement, ByRef previousPlace As Movement, ByVal pieceIndex As Integer)
+    If previousPlace.IsInsideTable Then
+        table(previousPlace.Row, previousPlace.Column) = EMPTY_CELL
+    End If
     wmpPlayer.URL = App.Path + "\moved.wav"  'play piece move sound
     table(newPlace.Row, newPlace.Column) = IIf(pieceIndex < p2FirstPieceIndex, p1Value, p2Value)
     'Set the imgPlayer location at the center of the room
@@ -402,7 +405,7 @@ Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Inte
             
         Else
         
-            SetTableIndexes index 'find the NewMove.Row and NewMove.Column variables values
+            Set NewMove = GetPositionOnTable(CByte(index)) 'find the NewMove.Row and NewMove.Column variables values
                 'edit table array value  with player data
             If table(NewMove.Row, NewMove.Column) <> EMPTY_CELL Then
                 ShowError "Destination room is not empty!"
@@ -426,10 +429,7 @@ Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Inte
                 'Else
                 '    ManageTurns
                 'End If
-                If PreMove.IsInsideTable Then
-                    table(PreMove.Row, PreMove.Column) = EMPTY_CELL
-                End If
-                Call SubmitMove(NewMove, index)
+                Call SubmitMove(NewMove, PreMove, index)
             End If
             
         End If
@@ -437,12 +437,15 @@ Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Inte
     End If
 End Sub
 
-Private Sub SetTableIndexes(index As Integer)
+Private Function GetPositionOnTable(index As Byte) As Movement
+    Dim position As New Movement
+    Set position = New Movement
+    
     Dim r As Byte
     ' Find current location NewMove.Row
     For r = 0 To MaxDimensionIndex
         If imgPlayer(index).Top + DeltaCenter <= linHorizontal(r + 1).Y1 Then
-            NewMove.Row = r
+            position.Row = r
             Exit For
         End If
     Next r
@@ -450,11 +453,12 @@ Private Sub SetTableIndexes(index As Integer)
     ' Find current location NewMove.Column
     For r = 0 To MaxDimensionIndex
         If imgPlayer(index).Left + DeltaCenter <= linVertical(r + 1).X1 Then
-            NewMove.Column = r
+            position.Column = r
             Exit For
         End If
     Next r
-End Sub
+    Set GetPositionOnTable = position
+End Function
 
 Private Sub RollbackMove(index As Integer)
     imgPlayer(index).Left = previousPositions(index, LeftIndex)
@@ -618,19 +622,20 @@ Private Sub ScoreNotification(winner As Byte)
 End Sub
 
 Private Sub DoBodYMove()
-    Dim bodyMove As New Movement
-    Set bodyMove = New Movement
     Do
-        Call bodyMove.RandomizeMove
-    Loop While table(bodyMove.Row, bodyMove.Column) <> EMPTY_CELL
+        Call Player2.NewMove.RandomizeMove
+    Loop While table(Player2.NewMove.Row, Player2.NewMove.Column) <> EMPTY_CELL
     Dim piece As Byte
     piece = Player2.UnusedPieces
     If piece = NO_UNUSED_PIECES Then
         piece = p2FirstPieceIndex
+        Set Player2.PreMove = GetPositionOnTable(piece)
+    Else
+        Call Player2.PreMove.PutOutOfTable
     End If
     ' READ PREVIOUS POSITION OF PIECE AND SET IT TO EMPTY
     ' OR DEFINE NewMove and PreMove fields for Player2, just like Player1
     ' or maybe define both of them as Opponent Object (BETTER)
-    Call SubmitMove(bodyMove, piece)
+    Call SubmitMove(Player2.NewMove, Player2.PreMove, piece)
 End Sub
 

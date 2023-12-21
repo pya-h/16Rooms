@@ -16,8 +16,7 @@ Option Explicit
 Private mLevel As Byte
 Private mName As Byte
 Private mUnusedPieces() As Byte
-
-
+Private mPreMove As New Movement, mNewMove As New Movement
 Public Property Get Name() As Variant
     Name = mName
 End Property
@@ -28,12 +27,15 @@ Public Property Let Name(ByVal val As Variant)
     Else
         mName = WRONG
     End If
+    
 End Property
 
 Public Sub Class_Initialize()
-    Name = Game.HUMAN
+    Name = Game.BodY
     Level = Game.HARD
     ReDim mUnusedPieces(0 To (TABLE_DIMENSION - 1))
+    Set mPreMove = New Movement
+    Set mNewMove = New Movement
 End Sub
 
 Public Sub ResetPiecesToUnused(first As Byte)
@@ -68,3 +70,22 @@ Public Property Get UnusedPieces()
         UnusedPieces = NO_UNUSED_PIECES
     End If
 End Property
+
+Public Property Get PreMove() As Movement
+    Set PreMove = mPreMove
+End Property
+Public Property Get NewMove() As Movement
+    Set NewMove = mNewMove
+End Property
+
+Public Property Let PreMove(ByRef value As Movement)
+    Set mPreMove = value
+End Property
+Public Property Let NewMove(ByRef value As Movement)
+    Set mNewMove = value
+End Property
+
+Public Sub HoldMove()
+    mPreMove.Row = mNewMove.Row
+    mPreMove.Column = mNewMove.Column
+End Sub
