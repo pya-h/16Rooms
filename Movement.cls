@@ -53,8 +53,8 @@ Public Sub RandomizeMove()
     Randomize Timer
     
     ' Generate a random number between 1 and TABLE_DIMENSION - 1
-    Row = Int((TABLE_DIMENSION - 1) * Rnd)
-    Column = Int((TABLE_DIMENSION - 1) * Rnd)
+    Row = CByte((TABLE_DIMENSION - 1) * Rnd)
+    Column = CByte((TABLE_DIMENSION - 1) * Rnd)
 End Sub
 
 Public Function ToString() As String

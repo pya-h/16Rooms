@@ -17,6 +17,23 @@ Private mLevel As Byte
 Private mName As Byte
 Private mUnusedPieces() As Byte
 Private mPreMove As New Movement, mNewMove As New Movement
+Private mLocked As Boolean
+Private mPiece As Byte  ' selected piece ready to move
+
+Public Property Get DragSpeed() As Integer
+    DragSpeed = 50
+    ' Change this comparing premove and newmove and obtain the speed as a percentage of the difference
+End Property
+Public Property Get Piece() As Byte
+    Piece = mPiece
+End Property
+
+Public Property Let Piece(ByVal val As Byte)
+    If (val >= 0 And val < TABLE_DIMENSION * 2) Or val = NO_UNUSED_PIECES Then
+        mPiece = val
+    End If
+End Property
+
 Public Property Get Name() As Variant
     Name = mName
 End Property
@@ -33,15 +50,17 @@ End Property
 Public Sub Class_Initialize()
     Name = Game.BodY
     Level = Game.HARD
-    ReDim mUnusedPieces(0 To (TABLE_DIMENSION - 1))
-    Set mPreMove = New Movement
+    ReDim mUnusedPieces(1 To TABLE_DIMENSION + 1)
+
     Set mNewMove = New Movement
+    Set mPreMove = New Movement
 End Sub
 
 Public Sub ResetPiecesToUnused(first As Byte)
     Dim i As Byte
-    For i = 0 To UBound(mUnusedPieces)
-        mUnusedPieces(i) = first + i
+    mUnusedPieces(1) = 255
+    For i = 2 To UBound(mUnusedPieces)
+        mUnusedPieces(i) = first + i - 2
     Next
 End Sub
 Public Property Get Level() As Variant
@@ -63,9 +82,9 @@ End Function
 Public Property Get UnusedPieces()
     Dim length As Integer
     length = UBound(mUnusedPieces)
-    If length > 0 Then
+    If length > 1 Then
         UnusedPieces = mUnusedPieces(length)
-        ReDim Preserve mUnusedPieces(0 To length - 1)
+        ReDim Preserve mUnusedPieces(1 To length - 1)
     Else
         UnusedPieces = NO_UNUSED_PIECES
     End If
@@ -89,3 +108,17 @@ Public Sub HoldMove()
     mPreMove.Row = mNewMove.Row
     mPreMove.Column = mNewMove.Column
 End Sub
+
+Public Property Get Locked() As Boolean
+    Locked = mLocked
+End Property
+
+Public Sub LockMe()
+    mLocked = True
+End Sub
+
+Public Sub UnlockMe()
+    mLocked = False
+End Sub
+
+

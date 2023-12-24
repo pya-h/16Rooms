@@ -5,9 +5,9 @@ Begin VB.Form frmMain
    BorderStyle     =   1  'Fixed Single
    Caption         =   "16 Rooms"
    ClientHeight    =   9795
-   ClientLeft      =   9375
-   ClientTop       =   3510
-   ClientWidth     =   10365
+   ClientLeft      =   4425
+   ClientTop       =   675
+   ClientWidth     =   10155
    BeginProperty Font 
       Name            =   "MS Sans Serif"
       Size            =   12
@@ -22,7 +22,12 @@ Begin VB.Form frmMain
    MaxButton       =   0   'False
    MinButton       =   0   'False
    ScaleHeight     =   9795
-   ScaleWidth      =   10365
+   ScaleWidth      =   10155
+   Begin VB.Timer gameTimer 
+      Interval        =   1000
+      Left            =   10200
+      Top             =   9120
+   End
    Begin VB.Label lblResult 
       Alignment       =   2  'Center
       BackColor       =   &H8000000B&
@@ -293,6 +298,9 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Option Explicit
+Private Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
+
+
 Dim pressed As Boolean
 Dim x0, y0 As Single
 Const p1FirstPieceIndex As Byte = 0, p2FirstPieceIndex As Byte = TABLE_DIMENSION, p1Value As Byte = 1, p2Value As Byte = 2 _
@@ -323,14 +331,16 @@ End Sub
 '       change the user interface maybe?        '
 'done       write a sub for restarting the game     '
 '       change the mouse cursor icon maybe      '
-'       optimize the code       '
-'       P1FirstPieceIndex is used at all?        '
-'       p2 as omputer and AI of course      '
+'       optimize the code       '    '
+'       p2 as computer and AI of course      '
 '       save game       '
 '       creat a menu for editing the game interface     '
 '       ask question when player presses X      '
 '       summorize things u learned in notebooks     '
 
+' I think primary and previous positions have no use !
+' define the first player as an opponent object too.
+' Make drag speed dynamic
 Private Sub Form_Load()
     Set Player2 = New Opponent
     Set NewMove = New Movement
@@ -342,23 +352,52 @@ Private Sub Form_Load()
     Next i
     
     lblResult.ZOrder (SendToBack)
-    
     ResetGame False
 
     DeltaCenter = imgPlayer(0).Width / 2
 End Sub
 
-Private Sub imgPlayer_MouseDown(index As Integer, Button As Integer, Shift As Integer, x As Single, Y As Single)
+
+Private Sub gameTimer_Timer()
+    If Player2.Locked Then
+        Dim dy As Integer, dx As Integer, X As Integer, Y As Integer
+        X = (linVertical(Player2.NewMove.Column).X1 + linVertical(Player2.NewMove.Column + 1).X1) / 2 ' - DeltaCenter
+        Y = (linHorizontal(Player2.NewMove.Row).Y1 + linHorizontal(Player2.NewMove.Row + 1).Y1) / 2 ' - DeltaCenter
+        dx = IIf(X >= imgPlayer(Player2.Piece).Left, Player2.DragSpeed, -Player2.DragSpeed)
+        dy = IIf(Y >= imgPlayer(Player2.Piece).Top, Player2.DragSpeed, -Player2.DragSpeed)
+        Dim reachedX As Boolean, reachedY As Boolean
+        reachedX = Abs(X - imgPlayer(Player2.Piece).Left) <= Player2.DragSpeed
+        reachedY = Abs(Y - imgPlayer(Player2.Piece).Top) <= Player2.DragSpeed
+
+        If Not reachedX Then
+            imgPlayer(Player2.Piece).Left = imgPlayer(Player2.Piece).Left + dx
+        End If
+        If Not reachedY Then
+            imgPlayer(Player2.Piece).Top = imgPlayer(Player2.Piece).Top + dy
+        End If
+        If reachedX And reachedY Then
+            Player2.UnlockMe
+            gameTimer.Interval = 1000
+            Call SubmitMove(Player2.NewMove, Player2.PreMove, Player2.Piece)
+        End If
+    ElseIf playerTurn = 1 And Player2.Name = BodY Then
+        Call DoBodYMove
+    End If
+    
+    
+End Sub
+
+Private Sub imgPlayer_MouseDown(index As Integer, Button As Integer, Shift As Integer, X As Single, Y As Single)
     If IsThisPlayerTurn(index) Then
         pressed = True
-        x0 = x
+        x0 = X
         y0 = Y
         previousPositions(index, LeftIndex) = imgPlayer(index).Left
         previousPositions(index, TopIndex) = imgPlayer(index).Top
         If previousPositions(index, LeftIndex) = PrimaryPositions(index, LeftIndex) And previousPositions(index, TopIndex) = PrimaryPositions(index, TopIndex) Then
             Call PreMove.PutOutOfTable
         Else
-            GetPositionOnTable CByte(index)
+            Set NewMove = GetPositionOnTable(CByte(index))
             PreMove.Row = NewMove.Row
             PreMove.Column = NewMove.Column
         End If
@@ -367,17 +406,19 @@ Private Sub imgPlayer_MouseDown(index As Integer, Button As Integer, Shift As In
     End If
 End Sub
 
-Private Sub imgPlayer_MouseMove(index As Integer, Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub imgPlayer_MouseMove(index As Integer, Button As Integer, Shift As Integer, X As Single, Y As Single)
     'the code for enabling imgPlayer dragging
     If pressed = True Then
-        imgPlayer(index).Left = imgPlayer(index).Left + x - x0
+        imgPlayer(index).Left = imgPlayer(index).Left + X - x0
         imgPlayer(index).Top = imgPlayer(index).Top + Y - y0
     End If
 End Sub
 Private Sub SubmitMove(ByRef newPlace As Movement, ByRef previousPlace As Movement, ByVal pieceIndex As Integer)
+    
     If previousPlace.IsInsideTable Then
         table(previousPlace.Row, previousPlace.Column) = EMPTY_CELL
     End If
+    
     wmpPlayer.URL = App.Path + "\moved.wav"  'play piece move sound
     table(newPlace.Row, newPlace.Column) = IIf(pieceIndex < p2FirstPieceIndex, p1Value, p2Value)
     'Set the imgPlayer location at the center of the room
@@ -391,7 +432,7 @@ Private Sub SubmitMove(ByRef newPlace As Movement, ByRef previousPlace As Moveme
         Call ManageTurns
     End If
 End Sub
-Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Integer, x As Single, Y As Single)
+Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Integer, X As Single, Y As Single)
     If IsThisPlayerTurn(index) Then
         pressed = False
         x0 = 0
@@ -411,24 +452,6 @@ Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Inte
                 ShowError "Destination room is not empty!"
                 RollbackMove index
             Else
-                'wmpPlayer.URL = App.Path + "\moved.wav"  'play piece move sound
-                
-                'If PreMove.IsInsideTable Then
-                '    table(PreMove.Row, PreMove.Column) = EMPTY_CELL
-                'End If
-                
-                'table(NewMove.Row, NewMove.Column) = IIf(index < p2FirstPieceIndex, p1Value, p2Value)
-                
-                'Set the imgPlayer location at the center of the room
-                'imgPlayer(index).Top = (linHorizontal(NewMove.Row).Y1 + linHorizontal(NewMove.Row + 1).Y1) / 2 - DeltaCenter
-                'imgPlayer(index).Left = (linVertical(NewMove.Column).X1 + linVertical(NewMove.Column + 1).X1) / 2 - DeltaCenter
-                'Dim winner As Byte: winner = 0
-                'winner = CheckForWinner()
-                'If winner <> EMPTY_CELL Then
-                '    ScoreNotification (winner)
-                'Else
-                '    ManageTurns
-                'End If
                 Call SubmitMove(NewMove, PreMove, index)
             End If
             
@@ -438,7 +461,7 @@ Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Inte
 End Sub
 
 Private Function GetPositionOnTable(index As Byte) As Movement
-    Dim position As New Movement
+    Dim position As Movement
     Set position = New Movement
     
     Dim r As Byte
@@ -523,10 +546,6 @@ Private Sub ManageTurns()
     playerTurn = (playerTurn + 1) Mod 2
     lblState.ForeColor = vbBlue
     lblState.Caption = "Player " + Str(playerTurn + 1) + "'s Turn"
-    
-    If playerTurn = 1 And Player2.Name = BodY Then
-        Call DoBodYMove
-    End If
 End Sub
 
 Private Function IsThisPlayerTurn(index As Integer) As Boolean
@@ -625,17 +644,21 @@ Private Sub DoBodYMove()
     Do
         Call Player2.NewMove.RandomizeMove
     Loop While table(Player2.NewMove.Row, Player2.NewMove.Column) <> EMPTY_CELL
-    Dim piece As Byte
-    piece = Player2.UnusedPieces
-    If piece = NO_UNUSED_PIECES Then
-        piece = p2FirstPieceIndex
-        Set Player2.PreMove = GetPositionOnTable(piece)
+    Player2.Piece = Player2.UnusedPieces
+    
+    If Player2.Piece = NO_UNUSED_PIECES Then
+        Randomize Timer
+        
+        Player2.Piece = CByte(Rnd * (TABLE_DIMENSION - 1) + p2FirstPieceIndex)
+        Player2.PreMove = GetPositionOnTable(Player2.Piece)
     Else
         Call Player2.PreMove.PutOutOfTable
     End If
     ' READ PREVIOUS POSITION OF PIECE AND SET IT TO EMPTY
     ' OR DEFINE NewMove and PreMove fields for Player2, just like Player1
     ' or maybe define both of them as Opponent Object (BETTER)
-    Call SubmitMove(Player2.NewMove, Player2.PreMove, piece)
+    Player2.LockMe
+    gameTimer.Interval = 1
+    
 End Sub
 
