@@ -20,6 +20,5 @@ Public Function Sum(arr() As Integer) As Integer
     For i = LBound(arr) To UBound(arr)
         Sum = Sum + arr(i)
     Next i
-    MsgBox (Sum)
 End Function
 

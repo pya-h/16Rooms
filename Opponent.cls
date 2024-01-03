@@ -27,7 +27,8 @@ Public Sub ResetWeights()
     Dim i As Byte, j As Byte
     For i = 0 To TABLE_DIMENSION - 1
         For j = 0 To TABLE_DIMENSION - 1
-            DefenceWeights(i, j) = AttackWeights(i, j) = 0
+            DefenceWeights(i, j) = 0
+            AttackWeights(i, j) = 0
         Next j
     Next i
 End Sub
@@ -40,20 +41,29 @@ Public Sub WeighTable()
     For i = 0 To TABLE_DIMENSION - 1
         For j = 0 To TABLE_DIMENSION - 1
             If table(i, j) <> EMPTY_CELL Then
-                DefenceWeights(i, j) = AttackWeights(i, j) = OUT_OF_REACH_CELL
+                DefenceWeights(i, j) = OUT_OF_REACH_CELL
+                AttackWeights(i, j) = OUT_OF_REACH_CELL
                 
             Else
-                Dim k As Byte, attackValue(0 To 2) As Integer, defenceValue(0 To 2) As Integer
-                attackValue(0) = attackValue(1) = attackValue(2) = 1
-                defenceValue(0) = defenceValue(1) = defenceValue(2) = 1
+                Dim k As Byte, attackValue(0 To 3) As Integer, defenceValue(0 To 3) As Integer
+                attackValue(0) = 1
+                attackValue(1) = 1
+                attackValue(2) = 1
+                attackValue(3) = 1
+                defenceValue(0) = 1
+                defenceValue(1) = 1
+                defenceValue(2) = 1
+                defenceValue(3) = 1
                 For k = 0 To TABLE_DIMENSION - 1
                     If table(k, j) <> EMPTY_CELL Then
                         If table(k, j) = mValue Then
                             attackValue(0) = attackValue(0) * 2
+                            
                             defenceValue(0) = 0
                         Else
                             attackValue(0) = 0
                             defenceValue(0) = defenceValue(0) * 2
+
                         End If
                     End If
                     
@@ -64,6 +74,27 @@ Public Sub WeighTable()
                         Else
                             attackValue(1) = 0
                             defenceValue(1) = defenceValue(1) * 2
+                        End If
+                    End If
+                    If i = j Then
+                        ' main diag move
+                        If table(k, k) = mValue Then
+                            attackValue(2) = attackValue(2) * 2
+                            defenceValue(2) = 0
+                        Else
+                            attackValue(2) = 0
+                            defenceValue(2) = defenceValue(2) * 2
+                        End If
+                    End If
+                    
+                    If i + j = TABLE_DIMENSION - 1 Then
+                        ' other diag move
+                        If table(k, TABLE_DIMENSION - k - 1) = mValue Then
+                            attackValue(3) = attackValue(3) * 2
+                            defenceValue(3) = 0
+                        Else
+                            attackValue(3) = 0
+                            defenceValue(3) = defenceValue(3) * 2
                         End If
                     End If
                 Next k
@@ -78,21 +109,33 @@ End Sub
 
 Public Property Get BestMove() As Movement
     Call WeighTable
-    Dim i As Byte, j As Byte, r As Byte, c As Byte
+    Dim i As Byte, j As Byte, attackRow As Byte, attackCol As Byte, defenseRow As Byte, defenseCol As Byte
     
     For i = 0 To TABLE_DIMENSION - 1
         For j = 0 To TABLE_DIMENSION - 1
-            If AttackWeights(i, j) > AttackWeights(r, c) Then
-                c = j
-                r = i
+            If AttackWeights(i, j) > AttackWeights(attackRow, attackCol) Then
+                attackCol = j
+                attackRow = i
+                
+            End If
+            
+            If DefenceWeights(i, j) > DefenceWeights(defenseRow, defenseCol) Then
+                defenseCol = j
+                defenseRow = i
                 
             End If
         Next j
     Next i
     
     Set BestMove = New Movement
-    BestMove.Row = r
-    BestMove.Column = c
+    If DefenceWeights(defenseRow, defenseCol) >= (TABLE_DIMENSION / 2) ^ 2 Then ' if defense if crucial
+        BestMove.Row = defenseRow
+        BestMove.Column = defenseCol
+    Else
+        BestMove.Row = attackRow
+        BestMove.Column = attackCol
+    End If
+
 End Property
 Public Property Get DragSpeed() As Integer
     DragSpeed = 50
@@ -110,6 +153,9 @@ End Property
 
 Public Property Let Value(val As Byte)
     mValue = val
+End Property
+Public Property Get Value() As Byte
+    Value = mValue
 End Property
 Public Property Get Name() As Variant
     Name = mName

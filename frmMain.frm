@@ -303,7 +303,7 @@ Private Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
 
 Dim pressed As Boolean
 Dim x0, y0 As Single
-Const p1FirstPieceIndex As Byte = 0, p2FirstPieceIndex As Byte = TABLE_DIMENSION, p1Value As Byte = 1, p2Value As Byte = 2 _
+Const p1FirstPieceIndex As Byte = 0, p2FirstPieceIndex As Byte = TABLE_DIMENSION, p1Value As Byte = 1 _
     , LeftIndex As Byte = 0, TopIndex As Byte = 1, MaxDimensionIndex As Byte = TABLE_DIMENSION - 1, lastPieceIndex As Byte = TABLE_DIMENSION * 2 - 1 'from 0
 Const SendToBack As Byte = 1, BringToFront As Byte = 0
 
@@ -343,7 +343,7 @@ End Sub
 ' Make drag speed dynamic
 Private Sub Form_Load()
     Set Player2 = New Opponent
-    Player2.Value = p2Value
+    Player2.Value = 2
     Set NewMove = New Movement
     Set PreMove = New Movement
 
@@ -421,7 +421,7 @@ Private Sub SubmitMove(ByRef newPlace As Movement, ByRef previousPlace As Moveme
     End If
     
     wmpPlayer.URL = App.Path + "\moved.wav"  'play piece move sound
-    table(newPlace.Row, newPlace.Column) = IIf(pieceIndex < p2FirstPieceIndex, p1Value, p2Value)
+    table(newPlace.Row, newPlace.Column) = IIf(pieceIndex < p2FirstPieceIndex, p1Value, Player2.Value)
     'Set the imgPlayer location at the center of the room
     imgPlayer(pieceIndex).Top = (linHorizontal(newPlace.Row).Y1 + linHorizontal(newPlace.Row + 1).Y1) / 2 - DeltaCenter
     imgPlayer(pieceIndex).Left = (linVertical(newPlace.Column).X1 + linVertical(newPlace.Column + 1).X1) / 2 - DeltaCenter
@@ -638,18 +638,23 @@ Private Sub ScoreNotification(winner As Byte)
     lblState.ForeColor = vbGreen
     lblState.Caption = "Player " & winner & " Scored!"
     scores(winner - 1) = scores(winner - 1) + 1
-    lblResult.Caption = scores(p1Value - 1) & " - " & scores(p2Value - 1)
+    lblResult.Caption = scores(p1Value - 1) & " - " & scores(Player2.Value - 1)
 End Sub
 
 Private Sub DoBodYMove()
 
-    MsgBox (Player2.BestMove.ToString())
     Do
-        Call Player2.NewMove.RandomizeMove
+        Player2.NewMove = Player2.BestMove
+        'MsgBox Player2.NewMove.ToString()
+        'Call Player2.NewMove.RandomizeMove
     Loop While table(Player2.NewMove.Row, Player2.NewMove.Column) <> EMPTY_CELL
     Player2.Piece = Player2.UnusedPieces
     
     If Player2.Piece = NO_UNUSED_PIECES Then
+        ' TODO: find the piece that has least value
+        ' 1 approach is: select each piece; suppose its not in its place;
+        ' calculate the value of that place
+        ' do this for all 4 pieces and select the min value
         Randomize Timer
         
         Player2.Piece = CByte(Rnd * (TABLE_DIMENSION - 1) + p2FirstPieceIndex)
