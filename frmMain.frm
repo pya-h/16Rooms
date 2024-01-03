@@ -655,6 +655,11 @@ Private Sub DoBodYMove()
         ' 1 approach is: select each piece; suppose its not in its place;
         ' calculate the value of that place
         ' do this for all 4 pieces and select the min value
+        
+        ' Now: get each piece
+        ' call GetPositionOnTable
+        ' calculate the value
+        ' use the min valuest
         Randomize Timer
         
         Player2.Piece = CByte(Rnd * (TABLE_DIMENSION - 1) + p2FirstPieceIndex)
