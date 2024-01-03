@@ -306,7 +306,7 @@ Dim x0, y0 As Single
 Const p1FirstPieceIndex As Byte = 0, p2FirstPieceIndex As Byte = TABLE_DIMENSION, p1Value As Byte = 1, p2Value As Byte = 2 _
     , LeftIndex As Byte = 0, TopIndex As Byte = 1, MaxDimensionIndex As Byte = TABLE_DIMENSION - 1, lastPieceIndex As Byte = TABLE_DIMENSION * 2 - 1 'from 0
 Const SendToBack As Byte = 1, BringToFront As Byte = 0
-Dim table(MaxDimensionIndex, MaxDimensionIndex) As Byte
+
 Dim PrimaryPositions(lastPieceIndex, 2) As Integer, previousPositions(lastPieceIndex, 2) As Integer
 Dim DeltaCenter As Integer ' For Finding the imageview center
 Dim NewMove As New Movement, PreMove As New Movement, playerTurn As Byte
@@ -343,8 +343,10 @@ End Sub
 ' Make drag speed dynamic
 Private Sub Form_Load()
     Set Player2 = New Opponent
+    Player2.Value = p2Value
     Set NewMove = New Movement
     Set PreMove = New Movement
+
     Dim i As Byte
     For i = 0 To lastPieceIndex
         PrimaryPositions(i, LeftIndex) = imgPlayer(i).Left
@@ -356,7 +358,6 @@ Private Sub Form_Load()
 
     DeltaCenter = imgPlayer(0).Width / 2
 End Sub
-
 
 Private Sub gameTimer_Timer()
     If Player2.Locked Then
@@ -516,7 +517,7 @@ Private Sub ResetGame(userRequestedTheReset As Boolean)
         For i = 0 To MaxDimensionIndex
             Dim j As Byte
             For j = 0 To MaxDimensionIndex
-                table(i, j) = EMPTY_CELL
+                Game.table(i, j) = EMPTY_CELL
                 
             Next j
         Next i
@@ -641,6 +642,8 @@ Private Sub ScoreNotification(winner As Byte)
 End Sub
 
 Private Sub DoBodYMove()
+
+    MsgBox (Player2.BestMove.ToString())
     Do
         Call Player2.NewMove.RandomizeMove
     Loop While table(Player2.NewMove.Row, Player2.NewMove.Column) <> EMPTY_CELL

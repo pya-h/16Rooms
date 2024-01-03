@@ -35,7 +35,7 @@ Public Function IsInsideTable()
     IsInsideTable = mRow <> OutOfTableValue And mColumn <> OutOfTableValue
 End Function
 Public Sub Class_Initialize()
-
+    mColumn = mRow = 0
 End Sub
 
 Public Property Get Column() As Variant
