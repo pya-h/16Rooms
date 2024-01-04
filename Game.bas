@@ -9,6 +9,7 @@ Public Const EASY As Byte = 1, HARD As Byte = 0
 Public Const OutOfTableValue = 127, NO_UNUSED_PIECES = 255
 Public Const OUT_OF_REACH_CELL As Integer = -1
 Public table(TABLE_DIMENSION - 1, TABLE_DIMENSION - 1) As Byte
+Public Const DEFFENSIVE_THRESHOLD = (TABLE_DIMENSION / 2) ^ 3
 Public Function UserIsSure(msgTitle As String) As Boolean
     UserIsSure = MsgBox("Are you sure to " & msgTitle, vbYesNo + vbQuestion, msgTitle) = vbYes
 End Function
@@ -22,3 +23,64 @@ Public Function Sum(arr() As Integer) As Integer
     Next i
 End Function
 
+Public Function GetCellWeight(Row As Byte, col As Byte, us As Byte) As Dict
+    Dim k As Byte, attackValue(0 To 3) As Integer, defenceValue(0 To 3) As Integer
+    attackValue(0) = 1
+    attackValue(1) = 1
+    attackValue(2) = 1
+    attackValue(3) = 1
+    defenceValue(0) = 1
+    defenceValue(1) = 1
+    defenceValue(2) = 1
+    defenceValue(3) = 1
+    For k = 0 To TABLE_DIMENSION - 1
+        If table(k, col) <> EMPTY_CELL Then
+            If table(k, col) = us Then
+                attackValue(0) = attackValue(0) * 2
+                
+                defenceValue(0) = 0
+            Else
+                attackValue(0) = 0
+                defenceValue(0) = defenceValue(0) * 2
+
+            End If
+        End If
+        
+        If table(Row, k) <> EMPTY_CELL Then
+            If table(Row, k) = us Then
+                attackValue(1) = attackValue(1) * 2
+                defenceValue(1) = 0
+            Else
+                attackValue(1) = 0
+                defenceValue(1) = defenceValue(1) * 2
+            End If
+        End If
+        If Row = col Then
+            ' main diag move
+            If table(k, k) = us Then
+                attackValue(2) = attackValue(2) * 2
+                defenceValue(2) = 0
+            Else
+                attackValue(2) = 0
+                defenceValue(2) = defenceValue(2) * 2
+            End If
+        End If
+        
+        If Row + col = TABLE_DIMENSION - 1 Then
+            ' other diag move
+            If table(k, TABLE_DIMENSION - k - 1) = us Then
+                attackValue(3) = attackValue(3) * 2
+                defenceValue(3) = 0
+            Else
+                attackValue(3) = 0
+                defenceValue(3) = defenceValue(3) * 2
+            End If
+        End If
+    Next k
+
+    Set GetCellWeight = New Dict
+    Call GetCellWeight.Add("def", Sum(defenceValue))
+    Call GetCellWeight.Add("att", Sum(attackValue))
+
+
+End Function

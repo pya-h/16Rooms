@@ -303,11 +303,11 @@ Private Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
 
 Dim pressed As Boolean
 Dim x0, y0 As Single
-Const p1FirstPieceIndex As Byte = 0, p2FirstPieceIndex As Byte = TABLE_DIMENSION, p1Value As Byte = 1 _
-    , LeftIndex As Byte = 0, TopIndex As Byte = 1, MaxDimensionIndex As Byte = TABLE_DIMENSION - 1, lastPieceIndex As Byte = TABLE_DIMENSION * 2 - 1 'from 0
+Const p1FirstPieceIndex As Byte = 0, p1Value As Byte = 1, LeftIndex As Byte = 0, TopIndex As Byte = 1 _
+    , MaxDimensionIndex As Byte = TABLE_DIMENSION - 1, totalPiecesIndex As Byte = TABLE_DIMENSION * 2 - 1 'from 0
 Const SendToBack As Byte = 1, BringToFront As Byte = 0
 
-Dim PrimaryPositions(lastPieceIndex, 2) As Integer, previousPositions(lastPieceIndex, 2) As Integer
+Dim PrimaryPositions(totalPiecesIndex, 2) As Integer, previousPositions(totalPiecesIndex, 2) As Integer
 Dim DeltaCenter As Integer ' For Finding the imageview center
 Dim NewMove As New Movement, PreMove As New Movement, playerTurn As Byte
 Dim scores(1) As Integer
@@ -320,23 +320,13 @@ Private Sub Command1_Click()
     Form1.Show
 End Sub
 
-'       bug fix :      '
-'done       if the player was in one of the table rooms then its source position array value must reset     '
-'done       check wether the destination table is empty or not                          '
-'done       check wether the destination position is in the table       '
-'done       check game state ( for determining the winner )         '
-'done       maybe an array for imgPlayers current form position and table position is needed        '
-'done       check the bounderies when the player releases the mouse button      '
-'done       add sounds      '
-'       change the user interface maybe?        '
-'done       write a sub for restarting the game     '
+'       TODO:
+'       change the user interface maybe?
 '       change the mouse cursor icon maybe      '
 '       optimize the code       '    '
-'       p2 as computer and AI of course      '
+
 '       save game       '
 '       creat a menu for editing the game interface     '
-'       ask question when player presses X      '
-'       summorize things u learned in notebooks     '
 
 ' I think primary and previous positions have no use !
 ' define the first player as an opponent object too.
@@ -344,11 +334,13 @@ End Sub
 Private Sub Form_Load()
     Set Player2 = New Opponent
     Player2.Value = 2
+    Player2.FirstPieceIndex = TABLE_DIMENSION
+    Player2.LastPieceIndex = TABLE_DIMENSION * 2 - 1
     Set NewMove = New Movement
     Set PreMove = New Movement
 
     Dim i As Byte
-    For i = 0 To lastPieceIndex
+    For i = 0 To totalPiecesIndex
         PrimaryPositions(i, LeftIndex) = imgPlayer(i).Left
         PrimaryPositions(i, TopIndex) = imgPlayer(i).Top
     Next i
@@ -361,13 +353,13 @@ End Sub
 
 Private Sub gameTimer_Timer()
     If Player2.Locked Then
-        Dim dy As Integer, dx As Integer, X As Integer, Y As Integer
-        X = (linVertical(Player2.NewMove.Column).X1 + linVertical(Player2.NewMove.Column + 1).X1) / 2 ' - DeltaCenter
+        Dim dy As Integer, dx As Integer, x As Integer, Y As Integer
+        x = (linVertical(Player2.NewMove.Column).X1 + linVertical(Player2.NewMove.Column + 1).X1) / 2 ' - DeltaCenter
         Y = (linHorizontal(Player2.NewMove.Row).Y1 + linHorizontal(Player2.NewMove.Row + 1).Y1) / 2 ' - DeltaCenter
-        dx = IIf(X >= imgPlayer(Player2.Piece).Left, Player2.DragSpeed, -Player2.DragSpeed)
+        dx = IIf(x >= imgPlayer(Player2.Piece).Left, Player2.DragSpeed, -Player2.DragSpeed)
         dy = IIf(Y >= imgPlayer(Player2.Piece).Top, Player2.DragSpeed, -Player2.DragSpeed)
         Dim reachedX As Boolean, reachedY As Boolean
-        reachedX = Abs(X - imgPlayer(Player2.Piece).Left) <= Player2.DragSpeed
+        reachedX = Abs(x - imgPlayer(Player2.Piece).Left) <= Player2.DragSpeed
         reachedY = Abs(Y - imgPlayer(Player2.Piece).Top) <= Player2.DragSpeed
 
         If Not reachedX Then
@@ -388,10 +380,10 @@ Private Sub gameTimer_Timer()
     
 End Sub
 
-Private Sub imgPlayer_MouseDown(index As Integer, Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub imgPlayer_MouseDown(index As Integer, Button As Integer, Shift As Integer, x As Single, Y As Single)
     If IsThisPlayerTurn(index) Then
         pressed = True
-        x0 = X
+        x0 = x
         y0 = Y
         previousPositions(index, LeftIndex) = imgPlayer(index).Left
         previousPositions(index, TopIndex) = imgPlayer(index).Top
@@ -407,10 +399,10 @@ Private Sub imgPlayer_MouseDown(index As Integer, Button As Integer, Shift As In
     End If
 End Sub
 
-Private Sub imgPlayer_MouseMove(index As Integer, Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub imgPlayer_MouseMove(index As Integer, Button As Integer, Shift As Integer, x As Single, Y As Single)
     'the code for enabling imgPlayer dragging
     If pressed = True Then
-        imgPlayer(index).Left = imgPlayer(index).Left + X - x0
+        imgPlayer(index).Left = imgPlayer(index).Left + x - x0
         imgPlayer(index).Top = imgPlayer(index).Top + Y - y0
     End If
 End Sub
@@ -421,7 +413,7 @@ Private Sub SubmitMove(ByRef newPlace As Movement, ByRef previousPlace As Moveme
     End If
     
     wmpPlayer.URL = App.Path + "\moved.wav"  'play piece move sound
-    table(newPlace.Row, newPlace.Column) = IIf(pieceIndex < p2FirstPieceIndex, p1Value, Player2.Value)
+    table(newPlace.Row, newPlace.Column) = IIf(pieceIndex < Player2.FirstPieceIndex, p1Value, Player2.Value)
     'Set the imgPlayer location at the center of the room
     imgPlayer(pieceIndex).Top = (linHorizontal(newPlace.Row).Y1 + linHorizontal(newPlace.Row + 1).Y1) / 2 - DeltaCenter
     imgPlayer(pieceIndex).Left = (linVertical(newPlace.Column).X1 + linVertical(newPlace.Column + 1).X1) / 2 - DeltaCenter
@@ -433,7 +425,7 @@ Private Sub SubmitMove(ByRef newPlace As Movement, ByRef previousPlace As Moveme
         Call ManageTurns
     End If
 End Sub
-Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Integer, X As Single, Y As Single)
+Private Sub imgPlayer_MouseUp(index As Integer, Button As Integer, Shift As Integer, x As Single, Y As Single)
     If IsThisPlayerTurn(index) Then
         pressed = False
         x0 = 0
@@ -502,7 +494,7 @@ Private Sub ResetGame(userRequestedTheReset As Boolean)
     scores(1) = 0
     lblResult.Caption = "0 - 0"
     Dim i As Byte
-    For i = 0 To lastPieceIndex
+    For i = 0 To totalPiecesIndex
         previousPositions(i, LeftIndex) = PrimaryPositions(i, LeftIndex)
         previousPositions(i, TopIndex) = PrimaryPositions(i, TopIndex)
         
@@ -522,7 +514,7 @@ Private Sub ResetGame(userRequestedTheReset As Boolean)
             Next j
         Next i
     End If
-    Call Player2.ResetPiecesToUnused(p2FirstPieceIndex)
+    Call Player2.ResetPiecesToUnused(Player2.FirstPieceIndex)
 End Sub
 
 Private Sub mnuNew_Click()
@@ -550,8 +542,8 @@ Private Sub ManageTurns()
 End Sub
 
 Private Function IsThisPlayerTurn(index As Integer) As Boolean
-    IsThisPlayerTurn = (playerTurn = 0 And index < p2FirstPieceIndex) Or _
-        (playerTurn = 1 And Player2.Name = HUMAN And index >= p2FirstPieceIndex)
+    IsThisPlayerTurn = (playerTurn = 0 And index < Player2.FirstPieceIndex) Or _
+        (playerTurn = 1 And Player2.Name = HUMAN And index >= Player2.FirstPieceIndex)
 End Function
 
 Private Sub ShowError(text As String)
@@ -651,18 +643,26 @@ Private Sub DoBodYMove()
     Player2.Piece = Player2.UnusedPieces
     
     If Player2.Piece = NO_UNUSED_PIECES Then
-        ' TODO: find the piece that has least value
-        ' 1 approach is: select each piece; suppose its not in its place;
-        ' calculate the value of that place
-        ' do this for all 4 pieces and select the min value
-        
         ' Now: get each piece
-        ' call GetPositionOnTable
+        Dim i As Byte, position As Movement, temp As Byte
+        Randomize Timer
+        Player2.Piece = CByte(Rnd * (TABLE_DIMENSION - 1) + Player2.FirstPieceIndex) ' choose random in case the below algorythm couldnt find best match
+        
+        ReDim possibleWeights(Player2.FirstPieceIndex To Player2.LastPieceIndex) As Dict
+
+        For i = Player2.FirstPieceIndex To Player2.LastPieceIndex
+            Set position = GetPositionOnTable(i)
+            ' Now assume this position on table is empty, then calculate its value:
+            temp = table(position.Row, position.Column)
+            table(position.Row, position.Column) = EMPTY_CELL
+            Set possibleWeights(i) = GetCellWeight(position.Row, position.Column, Player2.Value)
+
+            table(position.Row, position.Column) = temp  'Place the piece on its position again
+        Next i
+        
         ' calculate the value
         ' use the min valuest
-        Randomize Timer
-        
-        Player2.Piece = CByte(Rnd * (TABLE_DIMENSION - 1) + p2FirstPieceIndex)
+        Call Player2.SelectLeastSignificantPiece(possibleWeights)
         Player2.PreMove = GetPositionOnTable(Player2.Piece)
     Else
         Call Player2.PreMove.PutOutOfTable

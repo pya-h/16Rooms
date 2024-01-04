@@ -20,8 +20,24 @@ Private mUnusedPieces() As Byte
 Private mPreMove As New Movement, mNewMove As New Movement
 Private mLocked As Boolean
 Private mPiece As Byte  ' selected piece ready to move
+Private mFirstPieceIndex As Byte, mLastPieceIndex As Byte
 
 Dim DefenceWeights(TABLE_DIMENSION - 1, TABLE_DIMENSION - 1) As Integer, AttackWeights(TABLE_DIMENSION - 1, TABLE_DIMENSION - 1) As Integer
+
+Public Property Get FirstPieceIndex() As Byte
+    FirstPieceIndex = mFirstPieceIndex
+End Property
+Public Property Get LastPieceIndex() As Byte
+    LastPieceIndex = mLastPieceIndex
+End Property
+
+Public Property Let LastPieceIndex(Value As Byte)
+    mLastPieceIndex = IIf(Value < TABLE_DIMENSION * 2, Value, TABLE_DIMENSION * 2 - 1)
+End Property
+
+Public Property Let FirstPieceIndex(Value As Byte)
+    mFirstPieceIndex = Value
+End Property
 
 Public Sub ResetWeights()
     Dim i As Byte, j As Byte
@@ -45,62 +61,12 @@ Public Sub WeighTable()
                 AttackWeights(i, j) = OUT_OF_REACH_CELL
                 
             Else
-                Dim k As Byte, attackValue(0 To 3) As Integer, defenceValue(0 To 3) As Integer
-                attackValue(0) = 1
-                attackValue(1) = 1
-                attackValue(2) = 1
-                attackValue(3) = 1
-                defenceValue(0) = 1
-                defenceValue(1) = 1
-                defenceValue(2) = 1
-                defenceValue(3) = 1
-                For k = 0 To TABLE_DIMENSION - 1
-                    If table(k, j) <> EMPTY_CELL Then
-                        If table(k, j) = mValue Then
-                            attackValue(0) = attackValue(0) * 2
-                            
-                            defenceValue(0) = 0
-                        Else
-                            attackValue(0) = 0
-                            defenceValue(0) = defenceValue(0) * 2
-
-                        End If
-                    End If
-                    
-                    If table(i, k) <> EMPTY_CELL Then
-                        If table(i, k) = mValue Then
-                            attackValue(1) = attackValue(1) * 2
-                            defenceValue(1) = 0
-                        Else
-                            attackValue(1) = 0
-                            defenceValue(1) = defenceValue(1) * 2
-                        End If
-                    End If
-                    If i = j Then
-                        ' main diag move
-                        If table(k, k) = mValue Then
-                            attackValue(2) = attackValue(2) * 2
-                            defenceValue(2) = 0
-                        Else
-                            attackValue(2) = 0
-                            defenceValue(2) = defenceValue(2) * 2
-                        End If
-                    End If
-                    
-                    If i + j = TABLE_DIMENSION - 1 Then
-                        ' other diag move
-                        If table(k, TABLE_DIMENSION - k - 1) = mValue Then
-                            attackValue(3) = attackValue(3) * 2
-                            defenceValue(3) = 0
-                        Else
-                            attackValue(3) = 0
-                            defenceValue(3) = defenceValue(3) * 2
-                        End If
-                    End If
-                Next k
+                Dim weights As New Dict
+                Set weights = GetCellWeight(i, j, mValue)
                 
-                DefenceWeights(i, j) = Sum(defenceValue)
-                AttackWeights(i, j) = Sum(attackValue)
+                DefenceWeights(i, j) = weights.Item("def")
+                AttackWeights(i, j) = weights.Item("att")
+                
             End If
             
         Next j
@@ -128,7 +94,7 @@ Public Property Get BestMove() As Movement
     Next i
     
     Set BestMove = New Movement
-    If DefenceWeights(defenseRow, defenseCol) >= (TABLE_DIMENSION / 2) ^ 2 Then ' if defense if crucial
+    If DefenceWeights(defenseRow, defenseCol) >= DEFFENSIVE_THRESHOLD Then ' if defense if crucial
         BestMove.Row = defenseRow
         BestMove.Column = defenseCol
     Else
@@ -242,6 +208,24 @@ End Sub
 
 Public Sub UnlockMe()
     mLocked = False
+End Sub
+
+Public Sub SelectLeastSignificantPiece(possibleWeights() As Dict)
+    Dim p As Byte, minAttackIndex As Byte, minDeffenseIndex As Byte
+    minAttackIndex = LBound(possibleWeights)
+    minDeffenseIndex = LBound(possibleWeights)
+    For p = LBound(possibleWeights) + 1 To UBound(possibleWeights)
+        If possibleWeights(p).Item("att") < possibleWeights(minAttackIndex).Item("att") Then
+            minAttackIndex = p
+        End If
+        
+        If possibleWeights(p).Item("def") < possibleWeights(minDeffenseIndex).Item("def") Then
+            minDeffenseIndex = p
+        End If
+    Next p
+    Piece = IIf(possibleWeights(minDeffenseIndex).Item("def") < DEFFENSIVE_THRESHOLD, _
+        minDeffenseIndex, minAttackIndex)
+
 End Sub
 
 

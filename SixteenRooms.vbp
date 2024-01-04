@@ -6,6 +6,7 @@ Form=frmOptions.frm
 Module=Game; Game.bas
 Class=Opponent; Opponent.cls
 Class=Movement; Movement.cls
+Class=Dict; Dict.cls
 IconForm="frmMain"
 Startup="frmMain"
 HelpFile=""
