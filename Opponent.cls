@@ -13,7 +13,6 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-Private mLevel As Byte
 Private mValue As Byte
 Private mName As Byte
 Private mUnusedPieces() As Byte
@@ -21,6 +20,8 @@ Private mPreMove As New Movement, mNewMove As New Movement
 Private mLocked As Boolean
 Private mPiece As Byte  ' selected piece ready to move
 Private mFirstPieceIndex As Byte, mLastPieceIndex As Byte
+Private mGamePlayStyle As Byte
+Private mDefenseThreshold As Integer, mAttackThreshold As Integer
 
 Dim DefenceWeights(TABLE_DIMENSION - 1, TABLE_DIMENSION - 1) As Integer, AttackWeights(TABLE_DIMENSION - 1, TABLE_DIMENSION - 1) As Integer
 
@@ -31,12 +32,12 @@ Public Property Get LastPieceIndex() As Byte
     LastPieceIndex = mLastPieceIndex
 End Property
 
-Public Property Let LastPieceIndex(Value As Byte)
-    mLastPieceIndex = IIf(Value < TABLE_DIMENSION * 2, Value, TABLE_DIMENSION * 2 - 1)
+Public Property Let LastPieceIndex(value As Byte)
+    mLastPieceIndex = IIf(value < TABLE_DIMENSION * 2, value, TABLE_DIMENSION * 2 - 1)
 End Property
 
-Public Property Let FirstPieceIndex(Value As Byte)
-    mFirstPieceIndex = Value
+Public Property Let FirstPieceIndex(value As Byte)
+    mFirstPieceIndex = value
 End Property
 
 Public Sub ResetWeights()
@@ -94,7 +95,12 @@ Public Property Get BestMove() As Movement
     Next i
     
     Set BestMove = New Movement
-    If DefenceWeights(defenseRow, defenseCol) >= DEFFENSIVE_THRESHOLD Then ' if defense if crucial
+    If AttackWeights(attackRow, attackCol) >= mAttackThreshold Then
+        ' TODO: Find The piece that isnt in the direction of weights
+        BestMove.Row = attackRow
+        BestMove.Column = attackCol
+    ElseIf DefenceWeights(defenseRow, defenseCol) >= mDefenseThreshold Then ' if defense if crucial
+        ' Now bugs are happening (Not pReventing 100% score threat)
         BestMove.Row = defenseRow
         BestMove.Column = defenseCol
     Else
@@ -117,11 +123,11 @@ Public Property Let Piece(ByVal val As Byte)
     End If
 End Property
 
-Public Property Let Value(val As Byte)
+Public Property Let value(val As Byte)
     mValue = val
 End Property
-Public Property Get Value() As Byte
-    Value = mValue
+Public Property Get value() As Byte
+    value = mValue
 End Property
 Public Property Get Name() As Variant
     Name = mName
@@ -138,9 +144,8 @@ End Property
 
 Public Sub Class_Initialize()
     Name = Game.BodY
-    Level = Game.HARD
     ReDim mUnusedPieces(1 To TABLE_DIMENSION + 1)
-
+    GamePlayStyle = Game.AGGRESSIVE_GAMEPLAY_STYLE
     Set mNewMove = New Movement
     Set mPreMove = New Movement
 End Sub
@@ -152,17 +157,6 @@ Public Sub ResetPiecesToUnused(first As Byte)
         mUnusedPieces(i) = first + i - 2
     Next
 End Sub
-Public Property Get Level() As Variant
-    Level = mLevel
-End Property
-
-Public Property Let Level(ByVal val As Variant)
-    If val = Game.EASY Or val = Game.HARD Then
-        mLevel = val
-    Else
-        mLevel = WRONG
-    End If
-End Property
 
 Public Function ToString() As String
     ToString = "Opponent: " & IIf(Name = Game.BodY, "BodY", "Human")
@@ -186,11 +180,11 @@ Public Property Get NewMove() As Movement
     Set NewMove = mNewMove
 End Property
 
-Public Property Let PreMove(ByRef Value As Movement)
-    Set mPreMove = Value
+Public Property Let PreMove(ByRef value As Movement)
+    Set mPreMove = value
 End Property
-Public Property Let NewMove(ByRef Value As Movement)
-    Set mNewMove = Value
+Public Property Let NewMove(ByRef value As Movement)
+    Set mNewMove = value
 End Property
 
 Public Sub HoldMove()
@@ -227,5 +221,19 @@ Public Sub SelectLeastSignificantPiece(possibleWeights() As Dict)
         minDeffenseIndex, minAttackIndex)
 
 End Sub
-
-
+Public Property Get GamePlayStyle() As Byte
+    GamePlayStyle = mGamePlayStyle
+End Property
+Public Property Let GamePlayStyle(val As Byte)
+    If val = Game.FULL_DEFFENSIVE_GAMEPLAY_STYLE Then
+        mGamePlayStyle = Game.FULL_DEFFENSIVE_GAMEPLAY_STYLE
+        mDefenseThreshold = Game.FULL_DEFENSIVE_THRESHOLD_VALUE
+        mAttackThreshold = Game.FULL_DEFENSIVE_THRESHOLD_VALUE
+    ElseIf val = Game.AGGRESSIVE_GAMEPLAY_STYLE Then
+        mGamePlayStyle = Game.AGGRESSIVE_GAMEPLAY_STYLE
+        mDefenseThreshold = Game.AGGRESSIVE_THRESHOLD_VALUE
+        mAttackThreshold = Game.AGGRESSIVE_THRESHOLD_VALUE
+    ElseIf val = Game.RANDOM_GAMEPLAY_STYLE Then
+        mGamePlayStyle = Game.RANDOM_GAMEPLAY_STYLE
+    End If
+End Property
